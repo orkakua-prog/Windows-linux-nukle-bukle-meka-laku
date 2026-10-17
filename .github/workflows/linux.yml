@@ -21,19 +21,24 @@ jobs:
           # Add AnyDesk GPG key and repository
           sudo apt-get install -y ca-certificates curl apt-transport-https
           sudo install -m 0755 -d /etc/apt/keyrings
-          sudo curl -fsSL https://keys.anydesk.com/repos/DEB-GPG-KEY -o /etc/apt/keyrings/keys.anydesk.com.asc
-          sudo chmod a+r /etc/apt/keyrings/keys.anydesk.com.asc
+          sudo curl -fsSL https://anydesk.com -o /etc/apt/keyrings/://anydesk.com.asc
+          sudo chmod a+r /etc/apt/keyrings/://anydesk.com.asc
           
-          echo "deb [signed-by=/etc/apt/keyrings/keys.anydesk.com.asc] https://deb.anydesk.com all main" | sudo tee /etc/apt/sources.list.d/anydesk-stable.list > /dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/://anydesk.com.asc] https://anydesk.com all main" | sudo tee /etc/apt/sources.list.d/anydesk-stable.list > /dev/null
           
           sudo apt-get update
           sudo apt-get install -y anydesk
 
       - name: Configure AnyDesk Password
         run: |
+          # Safely create the configuration folder before writing files
+          mkdir -p ~/.anydesk
+          
           # Set an unattended access password (replace 'YourSecurePassword123' with your choice)
           echo "ad.security.allow_logon_token=true" >> ~/.anydesk/user.conf
           echo "ad.features.unattended=true" >> ~/.anydesk/user.conf
+          
+          # Assign the password to the AnyDesk background system service
           sudo sh -c 'echo "YourSecurePassword123" | anydesk --set-password'
 
       - name: Start Virtual Display and AnyDesk
@@ -45,9 +50,9 @@ jobs:
           # 2. Start the XFCE4 session in the background
           startxfce4 &
           
-          # 3. Start the AnyDesk service
+          # 3. Start the AnyDesk system service
           sudo systemctl start anydesk
-          sleep 3
+          sleep 5
           
           # 4. Fetch your AnyDesk Address/ID
           echo "=============================================="
