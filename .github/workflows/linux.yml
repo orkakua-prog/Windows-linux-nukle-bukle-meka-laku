@@ -1,70 +1,38 @@
-name: Linux Remote Desktop with AnyDesk
+name: Linux VNC over Tailscale
 
-on: 
-  workflow_dispatch: # Allows you to manually trigger the workflow from the Actions tab
+on:
+  workflow_dispatch:
 
 jobs:
-  anydesk-session:
+  vnc-runner:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install Desktop Environment & Virtual Display
+      - name: Install desktop and VNC packages
         run: |
           sudo apt-get update
-          # Install a lightweight desktop environment and X virtual framebuffer
-          sudo apt-get install -y xfce4 xfce4-goodies xvfb x11vnc libgtkglext1
+          sudo apt-get install -y xfce4 xfce4-goodies tigervnc-standalone-server dbus-x11 x11-apps
 
-      - name: Install AnyDesk
-        run: |
-          # Add AnyDesk GPG key and repository
-          sudo apt-get install -y ca-certificates curl apt-transport-https
-          sudo install -m 0755 -d /etc/apt/keyrings
-          
-          # Added -A "Mozilla/5.0" to bypass the 403 Forbidden cloud block
-          sudo curl -fsSL -A "Mozilla/5.0" https://keys.anydesk.com/repos/DEB-GPG-KEY -o /etc/apt/keyrings/keys.anydesk.com.asc
-          sudo chmod a+r /etc/apt/keyrings/keys.anydesk.com.asc
-          
-          # Using the stable deb mirror link compatible with cloud servers
-          echo "deb [signed-by=/etc/apt/keyrings/keys.anydesk.com.asc] http://deb.anydesk.com all main" | sudo tee /etc/apt/sources.list.d/anydesk-stable.list > /dev/null
-          
-          sudo apt-get update
-          sudo apt-get install -y anydesk
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          auth_key: ${{ secrets.TAILSCALE_AUTHKEY }}
+          version: latest
 
-      - name: Configure AnyDesk Password
+      - name: Configure VNC server
         run: |
-          # Safely create the configuration folder before writing files
-          mkdir -p ~/.anydesk
+          mkdir -p ~/.vnc
+          echo "password" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
           
-          # Set an unattended access password (replace 'YourSecurePassword123' with your choice)
-          echo "ad.security.allow_logon_token=true" >> ~/.anydesk/user.conf
-          echo "ad.features.unattended=true" >> ~/.anydesk/user.conf
+          # Start XFCE desktop session via vncserver
+          vncserver :1 -geometry 1280x800 -depth 24
           
-          # Assign the password to the AnyDesk background system service
-          sudo sh -c 'echo "YourSecurePassword123" | anydesk --set-password'
-
-      - name: Start Virtual Display and AnyDesk
+      - name: Keep workflow alive and inspect status
         run: |
-          # 1. Start Xvfb virtual frame buffer on screen :1
-          Xvfb :1 -screen 0 1280x1024x24 &
-          export DISPLAY=:1
-          
-          # 2. Start the XFCE4 session in the background
-          startxfce4 &
-          
-          # 3. Start the AnyDesk system service
-          sudo systemctl start anydesk
-          sleep 5
-          
-          # 4. Fetch your AnyDesk Address/ID
-          echo "=============================================="
-          echo "YOUR ANYDESK ID IS:"
-          anydesk --get-id
-          echo "=============================================="
-
-      - name: Keep Runner Alive
-        run: |
-          echo "Keeping session alive... Cancel the workflow manually to stop."
-          # Keeps the GitHub Action alive so the runner does not terminate
-          sleep infinity
+          echo "VNC server running on IP: $(tailscale ip -4):5901"
+          echo "Password is: password"
+          # Sleep for the desired debug duration (max job timeout applies)
+          sleep 3600
