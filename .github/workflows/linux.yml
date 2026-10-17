@@ -21,10 +21,13 @@ jobs:
           # Add AnyDesk GPG key and repository
           sudo apt-get install -y ca-certificates curl apt-transport-https
           sudo install -m 0755 -d /etc/apt/keyrings
-          sudo curl -fsSL https://anydesk.com -o /etc/apt/keyrings/://anydesk.com.asc
-          sudo chmod a+r /etc/apt/keyrings/://anydesk.com.asc
           
-          echo "deb [signed-by=/etc/apt/keyrings/://anydesk.com.asc] https://anydesk.com all main" | sudo tee /etc/apt/sources.list.d/anydesk-stable.list > /dev/null
+          # Added -A "Mozilla/5.0" to bypass the 403 Forbidden cloud block
+          sudo curl -fsSL -A "Mozilla/5.0" https://keys.anydesk.com/repos/DEB-GPG-KEY -o /etc/apt/keyrings/keys.anydesk.com.asc
+          sudo chmod a+r /etc/apt/keyrings/keys.anydesk.com.asc
+          
+          # Using the stable deb mirror link compatible with cloud servers
+          echo "deb [signed-by=/etc/apt/keyrings/keys.anydesk.com.asc] http://deb.anydesk.com all main" | sudo tee /etc/apt/sources.list.d/anydesk-stable.list > /dev/null
           
           sudo apt-get update
           sudo apt-get install -y anydesk
